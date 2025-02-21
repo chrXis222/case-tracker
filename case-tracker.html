@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Daily Case Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0 auto;
+      max-width: 600px;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      text-align: center;
+    }
+    .progress-bar-container {
+      background-color: #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 25px;
+      margin-bottom: 10px;
+    }
+    .progress-bar-fill {
+      background-color: #4caf50;
+      height: 100%;
+      width: 0;
+      transition: width 0.5s ease-in-out;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background-color: #f5f5f5;
+      text-align: left;
+    }
+    .footer-text {
+      color: #888;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 20px;
+    }
+    .button-group {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+    }
+    .button-group button {
+      padding: 8px 16px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Daily Case Tracker</h1>
+  <p style="text-align: center;">
+    Enter a Case Transaction ID below to track your daily progress.
+  </p>
+
+  <!-- Input Form -->
+  <div>
+    <label for="transaction-input" style="display:block; margin-bottom: 5px;">Transaction ID:</label>
+    <input
+      type="text"
+      id="transaction-input"
+      style="width: 100%; padding: 8px;"
+      placeholder="e.g., 5O1234577"
+    />
+    <div class="button-group">
+      <button onclick="addTransaction()">Add Case</button>
+      <button onclick="clearData()">Clear All Data</button>
+      <button onclick="exportToExcel()">Export to Excel</button>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- Progress Section -->
+  <h2>Today's Progress</h2>
+  <div class="progress-bar-container">
+    <div id="progress-bar-fill" class="progress-bar-fill"></div>
+  </div>
+  <p id="progress-text" style="text-align: center;">0 / 20 (0%)</p>
+
+  <!-- Transactions Table -->
+  <h3>All Recorded Transactions</h3>
+  <table id="transactions-table">
+    <thead>
+      <tr>
+        <th>Transaction ID</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Rows will be inserted dynamically -->
+    </tbody>
+  </table>
+
+  <div class="footer-text">
+    Data is stored in your browser's localStorage.
+  </div>
+
+  <script>
+    // Configuration
+    const DAILY_GOAL = 20;
+    const STORAGE_KEY = "daily_case_tracker_data";
+
+    // On page load, render table and update progress bar.
+    window.onload = function() {
+      renderTable();
+      updateProgress();
+    };
+
+    // Add a new transaction record.
+    function addTransaction() {
+      const input = document.getElementById("transaction-input");
+      const transactionId = input.value.trim();
+
+      if (transactionId === "") {
+        alert("Please enter a valid transaction ID.");
+        return;
+      }
+
+      // Use ISO format for a consistent timestamp.
+      const newRecord = {
+        transactionId: transactionId,
+        timestamp: new Date().toISOString()
+      };
+
+      let data = loadData();
+      data.push(newRecord);
+      saveData(data);
+
+      input.value = "";
+      renderTable();
+      updateProgress();
+    }
+
+    // Load data from localStorage, ensuring we return an array.
+    function loadData() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      try {
+        const parsed = stored ? JSON.parse(stored) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    // Save data to localStorage.
+    function saveData(dataArray) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataArray));
+    }
+
+    // Clear all data from localStorage.
+    function clearData() {
+      if (confirm("Are you sure you want to clear all data? This cannot be undone.")) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderTable();
+        updateProgress();
+      }
+    }
+
+    // Export data as a CSV file that can be opened in Excel.
+    function exportToExcel() {
+      const data = loadData();
+      if (data.length === 0) {
+        alert("No data to export.");
+        return;
+      }
+      // Create CSV header
+      let csvContent = "Transaction ID,Timestamp\n";
+      // Append each record
+      data.forEach(record => {
+        csvContent += `"${record.transactionId}","${record.timestamp}"\n`;
+      });
+      // Create a Blob with the CSV data
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      // Create a temporary link element to trigger the download
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "transactions.csv";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // Render the transactions table.
+    function renderTable() {
+      const data = loadData();
+      const tableBody = document.querySelector("#transactions-table tbody");
+      tableBody.innerHTML = "";
+
+      data.forEach((record) => {
+        const row = document.createElement("tr");
+
+        const tdID = document.createElement("td");
+        tdID.textContent = record.transactionId;
+
+        const tdTimestamp = document.createElement("td");
+        tdTimestamp.textContent = record.timestamp;
+
+        row.appendChild(tdID);
+        row.appendChild(tdTimestamp);
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Update the progress bar by counting today's transactions.
+    function updateProgress() {
+      const data = loadData();
+      // Get today's date string in "YYYY-MM-DD" format.
+      const todayStr = getTodayStr();
+      const todayCount = data.filter(record => record.timestamp.startsWith(todayStr)).length;
+
+      const ratio = todayCount / DAILY_GOAL;
+      const percentage = Math.min(Math.round(ratio * 100), 100);
+
+      document.getElementById("progress-bar-fill").style.width = percentage + "%";
+      document.getElementById("progress-text").textContent = `${todayCount} / ${DAILY_GOAL} (${percentage}%)`;
+    }
+
+    // Helper: returns today's date as "YYYY-MM-DD".
+    function getTodayStr() {
+      return new Date().toISOString().slice(0, 10);
+    }
+  </script>
+</body>
+</html>
