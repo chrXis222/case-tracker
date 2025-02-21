@@ -2,9 +2,14 @@
 <html>
 <head>
   <meta charset="UTF-8" />
+  <!-- Mobile responsiveness -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Case Tracker</title>
   <style>
+    /* Dark Theme: Near black background and white text */
     body {
+      background-color: #0d0d0d; /* near black */
+      color: #ffffff; /* white text */
       font-family: Arial, sans-serif;
       margin: 0 auto;
       max-width: 600px;
@@ -12,16 +17,20 @@
     }
     h1, h2, h3 {
       text-align: center;
+      color: #ffffff;
+    }
+    p {
+      text-align: center;
     }
     .progress-bar-container {
-      background-color: #e0e0e0;
+      background-color: #1a1a1a; /* dark gray for contrast */
       border-radius: 6px;
       overflow: hidden;
       height: 25px;
       margin-bottom: 10px;
     }
     .progress-bar-fill {
-      background-color: #4caf50;
+      background-color: #4caf50; /* keep the green progress fill */
       height: 100%;
       width: 0;
       transition: width 0.5s ease-in-out;
@@ -32,11 +41,11 @@
       margin-top: 1rem;
     }
     th, td {
-      border: 1px solid #ddd;
+      border: 1px solid #333;
       padding: 8px;
     }
     th {
-      background-color: #f5f5f5;
+      background-color: #1a1a1a;
       text-align: left;
     }
     .footer-text {
@@ -53,14 +62,45 @@
     .button-group button {
       padding: 8px 16px;
       margin: 5px;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      border: 1px solid #333;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .button-group button:hover {
+      background-color: #333;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #333;
+      background-color: #1a1a1a;
+      color: #ffffff;
+    }
+    hr {
+      border: 1px solid #333;
+    }
+    /* Mobile Responsiveness */
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      .button-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .button-group button {
+        width: 100%;
+        margin: 5px 0;
+      }
     }
   </style>
 </head>
 <body>
   <h1>Daily Case Tracker</h1>
-  <p style="text-align: center;">
-    Enter a Case Transaction ID below to track your daily progress.
-  </p>
+  <p>Enter a Case Transaction ID below to track your daily progress.</p>
 
   <!-- Input Form -->
   <div>
@@ -68,7 +108,6 @@
     <input
       type="text"
       id="transaction-input"
-      style="width: 100%; padding: 8px;"
       placeholder="e.g., 5O1234577"
     />
     <div class="button-group">
@@ -85,7 +124,7 @@
   <div class="progress-bar-container">
     <div id="progress-bar-fill" class="progress-bar-fill"></div>
   </div>
-  <p id="progress-text" style="text-align: center;">0 / 20 (0%)</p>
+  <p id="progress-text">0 / 20 (0%)</p>
 
   <!-- Transactions Table -->
   <h3>All Recorded Transactions</h3>
@@ -120,22 +159,18 @@
     function addTransaction() {
       const input = document.getElementById("transaction-input");
       const transactionId = input.value.trim();
-
       if (transactionId === "") {
         alert("Please enter a valid transaction ID.");
         return;
       }
-
       // Use ISO format for a consistent timestamp.
       const newRecord = {
         transactionId: transactionId,
         timestamp: new Date().toISOString()
       };
-
       let data = loadData();
       data.push(newRecord);
       saveData(data);
-
       input.value = "";
       renderTable();
       updateProgress();
@@ -173,17 +208,12 @@
         alert("No data to export.");
         return;
       }
-      // Create CSV header
       let csvContent = "Transaction ID,Timestamp\n";
-      // Append each record
       data.forEach(record => {
         csvContent += `"${record.transactionId}","${record.timestamp}"\n`;
       });
-      // Create a Blob with the CSV data
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-
-      // Create a temporary link element to trigger the download
       const a = document.createElement("a");
       a.href = url;
       a.download = "transactions.csv";
@@ -198,16 +228,12 @@
       const data = loadData();
       const tableBody = document.querySelector("#transactions-table tbody");
       tableBody.innerHTML = "";
-
-      data.forEach((record) => {
+      data.forEach(record => {
         const row = document.createElement("tr");
-
         const tdID = document.createElement("td");
         tdID.textContent = record.transactionId;
-
         const tdTimestamp = document.createElement("td");
         tdTimestamp.textContent = record.timestamp;
-
         row.appendChild(tdID);
         row.appendChild(tdTimestamp);
         tableBody.appendChild(row);
@@ -218,19 +244,12 @@
     function updateProgress() {
       const data = loadData();
       // Get today's date string in "YYYY-MM-DD" format.
-      const todayStr = getTodayStr();
+      const todayStr = new Date().toISOString().slice(0, 10);
       const todayCount = data.filter(record => record.timestamp.startsWith(todayStr)).length;
-
       const ratio = todayCount / DAILY_GOAL;
       const percentage = Math.min(Math.round(ratio * 100), 100);
-
       document.getElementById("progress-bar-fill").style.width = percentage + "%";
       document.getElementById("progress-text").textContent = `${todayCount} / ${DAILY_GOAL} (${percentage}%)`;
-    }
-
-    // Helper: returns today's date as "YYYY-MM-DD".
-    function getTodayStr() {
-      return new Date().toISOString().slice(0, 10);
     }
   </script>
 </body>
