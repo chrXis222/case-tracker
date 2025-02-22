@@ -225,20 +225,22 @@
 
     // Render the transactions table.
     function renderTable() {
-      const data = loadData();
-      const tableBody = document.querySelector("#transactions-table tbody");
-      tableBody.innerHTML = "";
-      data.forEach(record => {
-        const row = document.createElement("tr");
-        const tdID = document.createElement("td");
-        tdID.textContent = record.transactionId;
-        const tdTimestamp = document.createElement("td");
-        tdTimestamp.textContent = record.timestamp;
-        row.appendChild(tdID);
-        row.appendChild(tdTimestamp);
-        tableBody.appendChild(row);
-      });
-    }
+  const data = loadData();
+  const tableBody = document.querySelector("#transactions-table tbody");
+  tableBody.innerHTML = "";
+  data.forEach(record => {
+    const row = document.createElement("tr");
+    const tdID = document.createElement("td");
+    tdID.textContent = record.transactionId;
+    const tdTimestamp = document.createElement("td");
+    // Convert to US Eastern Time
+    const easternTime = new Date(record.timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' });
+    tdTimestamp.textContent = easternTime;
+    row.appendChild(tdID);
+    row.appendChild(tdTimestamp);
+    tableBody.appendChild(row);
+  });
+}
 
     // Update the progress bar by counting today's transactions.
     function updateProgress() {
