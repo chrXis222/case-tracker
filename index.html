@@ -30,7 +30,7 @@
       margin-bottom: 10px;
     }
     .progress-bar-fill {
-      background-color: #4caf50; /* keep the green progress fill */
+      background-color: #4caf50; /* green progress fill */
       height: 100%;
       width: 0;
       transition: width 0.5s ease-in-out;
@@ -58,6 +58,7 @@
       display: flex;
       justify-content: space-around;
       margin-top: 10px;
+      flex-wrap: wrap;
     }
     .button-group button {
       padding: 8px 16px;
@@ -71,13 +72,14 @@
     .button-group button:hover {
       background-color: #333;
     }
-    input[type="text"] {
+    input[type="text"], input[type="number"] {
       width: 100%;
       padding: 8px;
       border-radius: 4px;
       border: 1px solid #333;
       background-color: #1a1a1a;
       color: #ffffff;
+      margin-bottom: 10px;
     }
     hr {
       border: 1px solid #333;
@@ -97,25 +99,30 @@
       }
     }
   </style>
+  <!-- Include Canvas Confetti Library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
 </head>
 <body>
   <h1>Daily Case Tracker</h1>
   <p>Enter a Case Transaction ID below to track your daily progress.</p>
 
-  <!-- Input Form -->
+  <!-- Input Form for Cases -->
   <div>
     <label for="transaction-input" style="display:block; margin-bottom: 5px;">Transaction ID:</label>
-    <input
-      type="text"
-      id="transaction-input"
-      placeholder="e.g., 5O1234577"
-    />
+    <input type="text" id="transaction-input" placeholder="e.g., 5O1234577" />
     <div class="button-group">
       <button onclick="addTransaction()">Add Case</button>
       <button onclick="clearData()">Clear All Data</button>
       <button onclick="exportToExcel()">Export to Excel</button>
     </div>
   </div>
+
+  <hr />
+
+  <!-- Daily Goal Input -->
+  <h2>Set Your Daily Goal</h2>
+  <input type="number" id="daily-goal-input" placeholder="Enter desired daily goal (default 20)" min="1" />
+  <button onclick="updateGoal()">Update Goal</button>
 
   <hr />
 
@@ -132,11 +139,11 @@
     <thead>
       <tr>
         <th>Transaction ID</th>
-        <th>Timestamp</th>
+        <th>Timestamp (Eastern Time)</th>
       </tr>
     </thead>
     <tbody>
-      <!-- Rows will be inserted dynamically -->
+      <!-- Rows inserted dynamically -->
     </tbody>
   </table>
 
@@ -145,17 +152,75 @@
   </div>
 
   <script>
-    // Configuration
-    const DAILY_GOAL = 20;
+    // LocalStorage keys
     const STORAGE_KEY = "daily_case_tracker_data";
+    const GOAL_KEY = "daily_case_goal";
+    const CELEBRATION_KEY = "celebrated_100_"; // We'll append today's date
 
-    // On page load, render table and update progress bar.
+    // On page load: render table and update progress.
     window.onload = function() {
       renderTable();
       updateProgress();
     };
 
-    // Add a new transaction record.
+    // ------------------------------------------------
+    // Eastern Time Helper Functions
+    // ------------------------------------------------
+    function getEasternDateTime() {
+      // Return full date/time in Eastern Time (24-hour format)
+      return new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
+    }
+    function getEasternDate() {
+      // Return date in "YYYY-MM-DD" format based on Eastern Time.
+      return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    }
+
+    // ------------------------------------------------
+    // Daily Goal Functions
+    // ------------------------------------------------
+    function loadGoal() {
+      const storedGoal = localStorage.getItem(GOAL_KEY);
+      return storedGoal ? parseInt(storedGoal, 10) : 20;
+    }
+    function saveGoal(newGoal) {
+      localStorage.setItem(GOAL_KEY, newGoal.toString());
+    }
+    function updateGoal() {
+      const goalInput = document.getElementById("daily-goal-input");
+      const newGoal = parseInt(goalInput.value.trim(), 10);
+      if (isNaN(newGoal) || newGoal < 1) {
+        alert("Please enter a valid goal (positive integer).");
+        return;
+      }
+      saveGoal(newGoal);
+      goalInput.value = "";
+      updateProgress();
+      alert(`Daily goal set to ${newGoal}`);
+    }
+
+    // ------------------------------------------------
+    // Celebration Functions for 100% Milestone
+    // ------------------------------------------------
+    function hasCelebrated() {
+      return localStorage.getItem(CELEBRATION_KEY + getEasternDate()) === "true";
+    }
+    function setCelebrated() {
+      localStorage.setItem(CELEBRATION_KEY + getEasternDate(), "true");
+    }
+    function celebrateAt100() {
+      // Trigger confetti animation using canvas-confetti
+      confetti({
+        particleCount: 200,
+        spread: 100,
+        origin: { y: 0.6 }
+      });
+      alert("Congratulations! You've reached 100% of your goal!");
+      setCelebrated();
+    }
+
+    // ------------------------------------------------
+    // Transaction Functions
+    // ------------------------------------------------
     function addTransaction() {
       const input = document.getElementById("transaction-input");
       const transactionId = input.value.trim();
@@ -163,10 +228,11 @@
         alert("Please enter a valid transaction ID.");
         return;
       }
-      // Use ISO format for a consistent timestamp.
+      // Create a record with Eastern Time values.
       const newRecord = {
         transactionId: transactionId,
-        timestamp: new Date().toISOString()
+        timestamp: getEasternDateTime(), // Eastern Time for display/export.
+        date: getEasternDate()             // For filtering.
       };
       let data = loadData();
       data.push(newRecord);
@@ -175,8 +241,6 @@
       renderTable();
       updateProgress();
     }
-
-    // Load data from localStorage, ensuring we return an array.
     function loadData() {
       const stored = localStorage.getItem(STORAGE_KEY);
       try {
@@ -186,29 +250,24 @@
         return [];
       }
     }
-
-    // Save data to localStorage.
     function saveData(dataArray) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataArray));
     }
-
-    // Clear all data from localStorage.
     function clearData() {
       if (confirm("Are you sure you want to clear all data? This cannot be undone.")) {
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(CELEBRATION_KEY + getEasternDate());
         renderTable();
         updateProgress();
       }
     }
-
-    // Export data as a CSV file that can be opened in Excel.
     function exportToExcel() {
       const data = loadData();
       if (data.length === 0) {
         alert("No data to export.");
         return;
       }
-      let csvContent = "Transaction ID,Timestamp\n";
+      let csvContent = "Transaction ID,Timestamp (Eastern Time)\n";
       data.forEach(record => {
         csvContent += `"${record.transactionId}","${record.timestamp}"\n`;
       });
@@ -223,35 +282,36 @@
       document.body.removeChild(a);
     }
 
-    // Render the transactions table.
+    // ------------------------------------------------
+    // Rendering & Progress Functions
+    // ------------------------------------------------
     function renderTable() {
-  const data = loadData();
-  const tableBody = document.querySelector("#transactions-table tbody");
-  tableBody.innerHTML = "";
-  data.forEach(record => {
-    const row = document.createElement("tr");
-    const tdID = document.createElement("td");
-    tdID.textContent = record.transactionId;
-    const tdTimestamp = document.createElement("td");
-    // Convert to US Eastern Time
-    const easternTime = new Date(record.timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' });
-    tdTimestamp.textContent = easternTime;
-    row.appendChild(tdID);
-    row.appendChild(tdTimestamp);
-    tableBody.appendChild(row);
-  });
-}
-
-    // Update the progress bar by counting today's transactions.
+      const data = loadData();
+      const tableBody = document.querySelector("#transactions-table tbody");
+      tableBody.innerHTML = "";
+      data.forEach(record => {
+        const row = document.createElement("tr");
+        const tdID = document.createElement("td");
+        tdID.textContent = record.transactionId;
+        const tdTimestamp = document.createElement("td");
+        tdTimestamp.textContent = record.timestamp;
+        row.appendChild(tdID);
+        row.appendChild(tdTimestamp);
+        tableBody.appendChild(row);
+      });
+    }
     function updateProgress() {
       const data = loadData();
-      // Get today's date string in "YYYY-MM-DD" format.
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const todayCount = data.filter(record => record.timestamp.startsWith(todayStr)).length;
-      const ratio = todayCount / DAILY_GOAL;
+      const dailyGoal = loadGoal();
+      const today = getEasternDate();
+      const todayCount = data.filter(record => record.date === today).length;
+      const ratio = todayCount / dailyGoal;
       const percentage = Math.min(Math.round(ratio * 100), 100);
       document.getElementById("progress-bar-fill").style.width = percentage + "%";
-      document.getElementById("progress-text").textContent = `${todayCount} / ${DAILY_GOAL} (${percentage}%)`;
+      document.getElementById("progress-text").textContent = `${todayCount} / ${dailyGoal} (${percentage}%)`;
+      if (percentage === 100 && !hasCelebrated()) {
+        celebrateAt100();
+      }
     }
   </script>
 </body>
